@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slam-torch"
+version = "0.1.0"
+description = "Offline monocular semantic SLAM with PyTorch perception"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Yuu" }]
+dependencies = [
+  "huggingface-hub>=0.27,<2",
+  "numpy>=1.26,<3",
+  "open3d>=0.19,<1",
+  "opencv-python-headless>=4.10,<5",
+  "platformdirs>=4.3,<5",
+  "pyyaml>=6.0,<7",
+  "safetensors>=0.5,<1",
+  "scipy>=1.13,<2",
+  "torch==2.11.0",
+  "torchvision==0.26.0",
+  "transformers>=4.48,<6",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+  "types-pyyaml>=6.0,<7",
+]
+
+[project.scripts]
+slam-torch = "slam_torch.cli:main"
+
+[tool.uv]
+required-version = ">=0.12.0"
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/slam_torch"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "model: requires downloaded model weights",
+  "benchmark: requires an external SLAM dataset",
+  "cuda: requires an NVIDIA CUDA GPU",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = false
+ignore_missing_imports = true

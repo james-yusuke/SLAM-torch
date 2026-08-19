@@ -1,0 +1,76 @@
+name: CUDA smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux-cuda:
+    runs-on: [self-hosted, Linux, X64, CUDA]
+    timeout-minutes: 180
+    env:
+      SLAM_TORCH_HOME: ${{ runner.tool_cache }}/slam-torch-assets
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - name: Sync CUDA 12.8 environment
+        run: uv sync --frozen --extra dev
+      - name: Fetch pinned models and 300-frame datasets
+        run: uv run --frozen slam-torch assets fetch --profile demo --accept-licenses
+      - name: Verify CUDA and run both perception models
+        run: uv run --frozen slam-torch doctor --require cuda --model-smoke
+      - name: Run CUDA tests
+        run: uv run --frozen pytest -q -m cuda
+      - name: Validate local datasets
+        run: |
+          uv run --frozen slam-torch datasets validate --type tartanair --input "$SLAM_TORCH_HOME/data/tartanair/oldtownfall-easy-p000-300"
+          uv run --frozen slam-torch datasets validate --type euroc --input "$SLAM_TORCH_HOME/data/euroc/MH_01_easy-300"
+      - name: Run 300-frame CUDA benchmark
+        run: uv run --frozen slam-torch run --device cuda --config configs/tartanair-demo.yaml --output "$GITHUB_WORKSPACE/cuda-runs"
+      - name: Assert CUDA benchmark thresholds and artifacts
+        run: |
+          RUN_DIR="$(find "$GITHUB_WORKSPACE/cuda-runs" -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          SLAM_BENCHMARK_RUN="$RUN_DIR" uv run --frozen python -c "import json, os, pathlib, numpy as np; p=pathlib.Path(os.environ['SLAM_BENCHMARK_RUN']); m=json.loads((p/'metrics.json').read_text()); t=np.atleast_2d(np.loadtxt(p/'trajectory.tum')); assert m['processed_frames']==300 and m['tracking_rate']>=0.95 and m['depth_abs_rel']<=0.35; assert m['trajectory_evaluation']['ate_normalized_by_path']<=0.10; assert m['runtime']['resolved'].startswith('cuda') and m['runtime']['peak_vram_bytes']>0; assert len(t)==300 and np.isfinite(t).all(); assert all((p/name).is_file() for name in ('map.ply','objects.json','run.yaml'))"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: linux-cuda-runs
+          path: cuda-runs
+
+  windows-cuda:
+    runs-on: [self-hosted, Windows, X64, CUDA]
+    timeout-minutes: 180
+    env:
+      SLAM_TORCH_HOME: ${{ runner.tool_cache }}/slam-torch-assets
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - name: Sync CUDA 12.8 environment
+        run: uv sync --frozen --extra dev
+      - name: Fetch pinned models and 300-frame datasets
+        run: uv run --frozen slam-torch assets fetch --profile demo --accept-licenses
+      - name: Verify CUDA and run both perception models
+        run: uv run --frozen slam-torch doctor --require cuda --model-smoke
+      - name: Run CUDA tests
+        run: uv run --frozen pytest -q -m cuda
+      - name: Validate local datasets
+        shell: pwsh
+        run: |
+          uv run --frozen slam-torch datasets validate --type tartanair --input "$env:SLAM_TORCH_HOME/data/tartanair/oldtownfall-easy-p000-300"
+          uv run --frozen slam-torch datasets validate --type euroc --input "$env:SLAM_TORCH_HOME/data/euroc/MH_01_easy-300"
+      - name: Run 300-frame CUDA benchmark
+        run: uv run --frozen slam-torch run --device cuda --config configs/tartanair-demo.yaml --output "$env:GITHUB_WORKSPACE/cuda-runs"
+      - name: Assert CUDA benchmark thresholds and artifacts
+        shell: pwsh
+        run: |
+          $runDir = (Get-ChildItem "$env:GITHUB_WORKSPACE/cuda-runs" -Directory | Sort-Object Name | Select-Object -Last 1).FullName
+          $env:SLAM_BENCHMARK_RUN = $runDir
+          uv run --frozen python -c "import json, os, pathlib, numpy as np; p=pathlib.Path(os.environ['SLAM_BENCHMARK_RUN']); m=json.loads((p/'metrics.json').read_text()); t=np.atleast_2d(np.loadtxt(p/'trajectory.tum')); assert m['processed_frames']==300 and m['tracking_rate']>=0.95 and m['depth_abs_rel']<=0.35; assert m['trajectory_evaluation']['ate_normalized_by_path']<=0.10; assert m['runtime']['resolved'].startswith('cuda') and m['runtime']['peak_vram_bytes']>0; assert len(t)==300 and np.isfinite(t).all(); assert all((p/name).is_file() for name in ('map.ply','objects.json','run.yaml'))"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: windows-cuda-runs
+          path: cuda-runs

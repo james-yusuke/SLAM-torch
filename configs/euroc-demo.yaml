@@ -1,0 +1,46 @@
+assets:
+  root: null
+dataset:
+  type: euroc
+  path: data/euroc/MH_01_easy-300
+  max_frames: 300
+device:
+  requested: auto
+  precision: balanced
+  allow_mps_fallback: true
+depth:
+  model_id: depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf
+  revision: fd2c22027eaf20374204f14099b8341e1925ad39
+  max_depth_m: 80.0
+detector:
+  score_threshold: 0.45
+  allowed_classes: []
+  dynamic_classes: [person, bicycle, car, motorcycle, bus, train, truck, bird, cat, dog, horse]
+tracking:
+  max_features: 3000
+  match_ratio: 0.78
+  min_matches: 20
+  min_inliers: 12
+  pnp_reprojection_error_px: 3.0
+  relocalization_keyframes: 40
+keyframes:
+  min_frame_gap: 5
+  max_frame_gap: 18
+  translation_m: 0.25
+  rotation_deg: 10.0
+  inlier_ratio: 0.55
+loop_closure:
+  enabled: true
+  min_keyframe_gap: 25
+  min_matches: 50
+  min_inliers: 20
+  max_candidates: 5
+mapping:
+  stride: 5
+  min_depth_m: 0.25
+  max_depth_m: 80.0
+  voxel_size_m: 0.06
+  object_merge_distance_m: 1.25
+  dynamic_ttl_seconds: 2.0
+output:
+  root: runs

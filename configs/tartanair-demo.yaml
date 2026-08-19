@@ -1,0 +1,47 @@
+assets:
+  root: null
+dataset:
+  type: tartanair
+  path: data/tartanair/oldtownfall-easy-p000-300
+  max_frames: 300
+device:
+  requested: auto
+  precision: balanced
+  allow_mps_fallback: true
+depth:
+  model_id: depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf
+  revision: fd2c22027eaf20374204f14099b8341e1925ad39
+  max_depth_m: 80.0
+  scale_factor: 0.49
+detector:
+  score_threshold: 0.45
+  allowed_classes: []
+  dynamic_classes: [person, bicycle, car, motorcycle, bus, train, truck, bird, cat, dog, horse]
+tracking:
+  max_features: 2500
+  match_ratio: 0.75
+  min_matches: 20
+  min_inliers: 12
+  pnp_reprojection_error_px: 3.0
+  relocalization_keyframes: 30
+keyframes:
+  min_frame_gap: 2
+  max_frame_gap: 20
+  translation_m: 0.35
+  rotation_deg: 12.0
+  inlier_ratio: 0.55
+loop_closure:
+  enabled: true
+  min_keyframe_gap: 20
+  min_matches: 50
+  min_inliers: 20
+  max_candidates: 5
+mapping:
+  stride: 6
+  min_depth_m: 0.25
+  max_depth_m: 80.0
+  voxel_size_m: 0.08
+  object_merge_distance_m: 1.5
+  dynamic_ttl_seconds: 2.0
+output:
+  root: runs

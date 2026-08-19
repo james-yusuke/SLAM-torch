@@ -209,6 +209,14 @@ tempCodeRunnerFile.py
 # PyPI configuration file
 .pypirc
 
+# SLAM models, datasets, temporary downloads, and generated run artifacts
+/models/*
+!/models/README.md
+/data/*
+!/data/README.md
+/.downloads/
+/runs/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

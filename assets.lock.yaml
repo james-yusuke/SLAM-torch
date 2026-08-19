@@ -1,0 +1,60 @@
+version: 1
+profiles:
+  demo:
+    frames: 300
+    datasets: [tartanair, euroc]
+
+models:
+  depth_anything_v2_metric_outdoor_small:
+    source: https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf
+    revision: fd2c22027eaf20374204f14099b8341e1925ad39
+    size_bytes: 99173660
+    sha256: ad065c77a7421ca55159a1f0db9433397a607690f2d76bb8a6fc54b1be7a3124
+    license: Apache-2.0
+    target: models/depth-anything-v2-metric-outdoor-small/model.safetensors
+  ssdlite320_mobilenet_v3_large_coco:
+    source: https://download.pytorch.org/models/ssdlite320_mobilenet_v3_large_coco-a79551df.pth
+    revision: COCO_V1
+    size_bytes: 14069355
+    sha256: a79551df90c79834bcd3bb3845ef9d966b5449a3a9b2833ae8404778ca5d65d2
+    license: BSD-3-Clause; COCO dataset terms apply
+    target: models/ssdlite320_mobilenet_v3_large_coco.pth
+
+datasets:
+  tartanair:
+    target: data/tartanair/oldtownfall-easy-p000-300
+    environment: OldTownFall
+    difficulty: easy
+    trajectory: P000
+    camera: lcam_front
+    license: CC-BY-4.0
+    assets:
+      - id: tartanair_rgb
+        source: https://huggingface.co/datasets/theairlabcmu/tartanair2/resolve/0d2d145e973832742a2aaa04b7d2ebffc8d82817/OldTownFall/Data_easy/image_lcam_front.zip
+        revision: 0d2d145e973832742a2aaa04b7d2ebffc8d82817
+        size_bytes: 1267959905
+        sha256: fae372f5e2d0664d3e1b656d4f8ea7a075e0a54d4494e0346ea5d7621240db6b
+        license: CC-BY-4.0
+        target: .downloads/tartanair/image_lcam_front.zip
+      - id: tartanair_depth
+        source: https://huggingface.co/datasets/theairlabcmu/tartanair2/resolve/0d2d145e973832742a2aaa04b7d2ebffc8d82817/OldTownFall/Data_easy/depth_lcam_front.zip
+        revision: 0d2d145e973832742a2aaa04b7d2ebffc8d82817
+        size_bytes: 576756725
+        sha256: 291d953d5d9d7022f2c3766402e6241cede91dec95005fdcb4dee85be0b88342
+        license: CC-BY-4.0
+        target: .downloads/tartanair/depth_lcam_front.zip
+  euroc:
+    target: data/euroc/MH_01_easy-300
+    sequence: MH_01_easy
+    camera: cam0
+    license: In Copyright - Non-Commercial Use Permitted
+    assets:
+      - id: euroc_machine_hall
+        source: dspace://bcaf173e-5dac-484b-bc37-faf97a594f1f/machine_hall.zip
+        revision: 7b2419c1-62b5-4714-b7f8-485e5fe3e5fe
+        size_bytes: 12683729426
+        sha256: 5ed7d07903f8d19b6c8808e2ae8a0872b281f6e34ef5497023b8ac58c3de0f6f
+        official_checksum: 363f5c2502b469cdd97ef85997714806
+        official_checksum_algorithm: MD5
+        license: In Copyright - Non-Commercial Use Permitted
+        target: .downloads/euroc/machine_hall.zip
