@@ -1,36 +1,38 @@
 # SLAM-torch
 
-PyTorchによる単眼深度推定と一般物体検出を、ORB/PnP・姿勢グラフ最適化と組み合わせたオフラインSemantic SLAMです。単眼RGB系列から、カメラ軌跡、色付き3D点群、物体の3D位置を生成します。
+English | [日本語](README-ja.md)
+
+SLAM-torch is an offline semantic SLAM system that combines PyTorch-based monocular depth estimation and general object detection with ORB/PnP tracking and pose-graph optimization. It generates a camera trajectory, a colored 3D point cloud, and 3D object positions from a monocular RGB sequence.
 
 > [!WARNING]
-> これは研究用MVPです。単眼深度のメートル尺度は推定値であり、飛行制御、安全判断、衝突回避にはそのまま使用できません。ROS 2、ライブカメラ、Jetson、実時間保証は初版の対象外です。
+> This is a research MVP. Metric scale from monocular depth is an estimate and must not be used directly for flight control, safety decisions, or collision avoidance. ROS 2, live cameras, Jetson, and real-time guarantees are outside the scope of this initial release.
 
-## 対応環境
+## Supported platforms
 
-- macOS Apple Silicon: PyTorch MPS、CPUフォールバック
-- Linux x86_64: NVIDIA CUDA 12.8、CPUフォールバック
-- Windows x86_64: NVIDIA CUDA 12.8、CPUフォールバック
-- Python 3.11、uv 0.12以降
+- macOS Apple Silicon: PyTorch MPS with CPU fallback
+- Linux x86_64: NVIDIA CUDA 12.8 with CPU fallback
+- Windows x86_64: NVIDIA CUDA 12.8 with CPU fallback
+- Python 3.11 and uv 0.12 or newer
 
-Linux/WindowsではuvがPyTorch CUDA 12.8ホイールを選択します。ローカルCUDA Toolkitのコンパイルは不要ですが、[CUDA 12.8互換NVIDIAドライバー](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html)が必要です。互換下限はLinux `525.60.13`、Windows `528.33`で、CUDA 12.8には570系以降を推奨します。`slam-torch doctor --require cuda`で実際の状態を確認してください。JetsonのJetPack用PyTorchは通常のx86_64ホイールと異なるため未対応です。
+On Linux and Windows, uv selects the PyTorch CUDA 12.8 wheels. Compiling against a local CUDA Toolkit is not required, but a [CUDA 12.8-compatible NVIDIA driver](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html) is. The minimum compatible versions are `525.60.13` on Linux and `528.33` on Windows; a 570-series or newer driver is recommended for CUDA 12.8. Run `slam-torch doctor --require cuda` to inspect the actual environment. Jetson is not supported because JetPack uses different PyTorch packages from the standard x86_64 wheels.
 
-## セットアップ
+## Setup
 
-macOS / Linuxでは次の手順でuvを導入します。
+Install uv on macOS or Linux:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --frozen --extra dev
 ```
 
-Windows PowerShellでは次の手順です。
+On Windows PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 uv sync --frozen --extra dev
 ```
 
-Apple SiliconではPyPI版PyTorch、Linux/Windows x86_64では`pytorch-cu128`のCUDA 12.8版を、[uvのPyTorch向けインデックス分岐](https://docs.astral.sh/uv/guides/integration/pytorch/)と同じ`uv.lock`から自動選択します。その後、診断と固定アセット取得を実行します。
+The same `uv.lock` automatically selects PyTorch from PyPI on Apple Silicon and the CUDA 12.8 build from the explicit `pytorch-cu128` index on Linux/Windows x86_64, following [uv's PyTorch index configuration](https://docs.astral.sh/uv/guides/integration/pytorch/). Then run diagnostics and fetch the pinned assets:
 
 ```bash
 uv run slam-torch doctor
@@ -38,29 +40,29 @@ uv run slam-torch assets fetch --profile demo --accept-licenses
 uv run slam-torch assets status --profile demo
 ```
 
-`assets fetch`は次の一式をリポジトリ内の`models/`と`data/`へ配置します。初回は公式配布物を約14GB取得するため、展開領域を含め20GB以上の空き容量を推奨します。ダウンロードは`.part`から再開でき、ハッシュ検証と300フレーム抽出の完了後に元アーカイブを削除します。通常のSLAM実行中はネットワークへ接続しません。
+`assets fetch` places the following items under the repository's `models/` and `data/` directories. The first run downloads approximately 14 GB of official archives; at least 20 GB of free space is recommended for downloading and extraction. Downloads resume from `.part` files. After hash verification and extraction of the 300-frame subsets, the source archives are deleted. Normal SLAM runs operate offline.
 
-- Depth Anything V2 Metric Outdoor Small（Apache-2.0）
+- Depth Anything V2 Metric Outdoor Small (Apache-2.0)
 - TorchVision SSDLite320 MobileNetV3 COCO
-- TartanAir `OldTownFall/Data_easy/P000/lcam_front`先頭300フレーム
-- EuRoC `MH_01_easy/cam0`先頭300フレーム
+- First 300 frames of TartanAir `OldTownFall/Data_easy/P000/lcam_front`
+- First 300 frames of EuRoC `MH_01_easy/cam0`
 
-取得元、固定リビジョン、サイズ、チェックサム、ライセンスは`assets.lock.yaml`に記録されています。TartanAirはCC BY 4.0、EuRoCは非商用利用条件のため、データ取得には`--accept-licenses`が必須です。大容量ファイルはGit管理外です。
+Sources, pinned revisions, sizes, checksums, and licenses are recorded in `assets.lock.yaml`. TartanAir is licensed under CC BY 4.0. EuRoC permits non-commercial use, so `--accept-licenses` is required before downloading the datasets. Large binary assets are excluded from Git.
 
-配置先は`--asset-root`、設定の`assets.root`、`SLAM_TORCH_HOME`、リポジトリルートの順で決まります。旧`SLAM_TORCH_CACHE`も移行用に利用できます。モデルだけを取得する互換コマンドも残しています。
+The asset root is resolved in this order: `--asset-root`, the `assets.root` configuration value, `SLAM_TORCH_HOME`, and the repository root. The legacy `SLAM_TORCH_CACHE` variable remains available as a migration fallback. Compatibility commands for fetching models only are also supported:
 
 ```bash
 uv run slam-torch assets fetch --component models
 uv run slam-torch models fetch
 ```
 
-## データセット
+## Datasets
 
 ### TartanAir V2
 
-標準demoは公式Hugging Face配布の屋外Easy系列から、RGB、深度、姿勢を同じ300インデックスへ揃えて配置します。SLAM入力に使うのはRGBだけで、正解深度と姿勢は評価専用です。
+The default demo aligns RGB images, depth maps, and poses to the same first 300 indices from the official outdoor Easy sequence. Only RGB is used as SLAM input; ground-truth depth and poses are used exclusively for evaluation.
 
-`tartanair-demo.yaml`では合成カメラ領域に対する固定尺度校正として`depth.scale_factor: 0.49`を明示しています。この係数は通常実行中に正解深度を参照せず、`run.yaml`へ保存されます。実ドローンのカメラでは既知距離や別センサーで個別に校正してください。
+`tartanair-demo.yaml` explicitly sets `depth.scale_factor: 0.49` as a fixed scale calibration for the synthetic camera domain. Normal runs do not consult ground-truth depth, and the factor is recorded in `run.yaml`. Calibrate this value independently using a known distance or another sensor when using a real drone camera.
 
 ```bash
 uv run slam-torch datasets validate \
@@ -69,15 +71,15 @@ uv run slam-torch datasets validate \
 uv run slam-torch run --device auto --config configs/tartanair-demo.yaml
 ```
 
-次のディレクトリ名を自動認識します。
+The following directory names are detected automatically:
 
-- RGB: `image_lcam_front`、`image_left`、`lcam_front`
-- 深度: `depth_lcam_front`、`depth_left`、`lcam_front_depth`
-- 姿勢: `pose_lcam_front.txt`、`pose_left.txt`、`pose.txt`
+- RGB: `image_lcam_front`, `image_left`, `lcam_front`
+- Depth: `depth_lcam_front`, `depth_left`, `lcam_front_depth`
+- Poses: `pose_lcam_front.txt`, `pose_left.txt`, `pose.txt`
 
 ### EuRoC MAV
 
-標準demoはETH Research CollectionのMachine Hall公式アーカイブから`MH_01_easy`だけを選択抽出します。初版では`cam0`だけを使用し、IMUと右カメラは使用しません。
+The default demo extracts only `MH_01_easy` from the official Machine Hall archive in the ETH Research Collection. This initial version uses `cam0` only; the IMU and right camera are not used.
 
 ```bash
 uv run slam-torch datasets validate \
@@ -86,58 +88,58 @@ uv run slam-torch datasets validate \
 uv run slam-torch run --device auto --config configs/euroc-demo.yaml
 ```
 
-外部の完全系列も従来どおり`run --input PATH`で設定値を上書きして利用できます。
+External full sequences can also be used by overriding the configured path with `run --input PATH`.
 
-## GPUと精度設定
+## GPU and precision settings
 
-`--device`は`auto`、`cpu`、`mps`、`cuda`、`cuda:N`を受け付けます。
+`--device` accepts `auto`, `cpu`, `mps`, `cuda`, and `cuda:N`.
 
-- `auto`: CUDA → MPS → CPUの順で利用可能なデバイスを選択します。
-- 明示したCUDAが使えない場合はエラーにします。
-- 実行途中のCUDAメモリ不足ではCPUへ暗黙移行せず、`failure.json`を保存して停止します。
-- `balanced`: CUDA深度推定のみFP16 autocast、物体検出はFP32です。
-- `deterministic`: FP32、TF32無効の比較・試験用設定です。
+- `auto` selects the first available backend in this order: CUDA, MPS, CPU.
+- An unavailable explicitly requested CUDA device is an error.
+- A CUDA out-of-memory error during a run writes `failure.json` and stops; it never falls back to CPU implicitly.
+- `balanced` uses FP16 autocast for CUDA depth estimation and FP32 for object detection.
+- `deterministic` uses FP32 with TF32 disabled for comparison and testing.
 
-CUDAが選ばれたかは`run.yaml`と`metrics.json`の`runtime.resolved`で確認できます。`metrics.json`にはGPU名、Compute Capability、ピークVRAM、モデル別推論時間も記録されます。
+Check `runtime.resolved` in `run.yaml` and `metrics.json` to verify the selected backend. `metrics.json` also records the GPU name, compute capability, peak VRAM, and per-model inference time.
 
-NVIDIA実機では次の診断で、CUDA 12.8ビルド、ドライバー、Tensor演算に加え、両モデルのパラメータと入力がCUDA上にあることを検査します。失敗時は非ゼロで終了します。
+On an NVIDIA machine, the following diagnostic verifies the CUDA 12.8 PyTorch build, driver, tensor operations, and that both models and their inputs are placed on CUDA. It exits with a non-zero status on failure.
 
 ```bash
 uv run slam-torch doctor --require cuda --model-smoke
 uv run slam-torch run --device cuda --config configs/tartanair-demo.yaml
 ```
 
-## 成果物
+## Outputs
 
-各実行は`runs/<UTC時刻>-<ID>/`へ保存されます。
+Each run is saved under `runs/<UTC-timestamp>-<ID>/`.
 
-- `trajectory.tum`: TUM形式の推定カメラ軌跡
-- `groundtruth.tum`: データセットに正解姿勢がある場合のみ
-- `map.ply`: 色付き3D点群
-- `objects.json`: 物体クラス、信頼度、3D中心、粗いAABB、動的状態
-- `metrics.json`: 追跡率、FPS、深度誤差、ATE/RPE、推論時間、デバイス情報
-- `run.yaml`: 解決済み設定と再現情報
-- `failure.json`: 初期化、データ、CUDA OOM等で失敗した場合
+- `trajectory.tum`: estimated camera trajectory in TUM format
+- `groundtruth.tum`: ground-truth trajectory when provided by the dataset
+- `map.ply`: colored 3D point cloud
+- `objects.json`: object classes, confidence scores, 3D centers, approximate AABBs, and dynamic state
+- `metrics.json`: tracking rate, FPS, depth error, ATE/RPE, inference times, and device information
+- `run.yaml`: resolved configuration and reproducibility metadata
+- `failure.json`: initialization, dataset, CUDA OOM, and other failure details
 
 ```bash
 uv run slam-torch evaluate --run runs/<run-id>
 uv run slam-torch visualize --run runs/<run-id>
 ```
 
-座標は最初のカメラを原点とする`T_world_camera`です。画像座標はx右、y下、カメラz前方のOpenCV規約です。
+Poses use `T_world_camera`, with the first camera frame as the world origin. Image coordinates follow the OpenCV convention: x points right, y points down, and camera z points forward.
 
-## 処理構成
+## Pipeline
 
-1. データセット固有形式を較正済みRGB `Frame`へ変換
-2. 全フレームでORB特徴抽出・記述子照合
-3. キーフレーム深度から3D特徴を作り、PnP RANSACで姿勢推定
-4. 追跡失敗時に過去キーフレームから再ローカライズ
-5. 非近傍キーフレームを幾何検証し、SE(3)姿勢グラフを最適化
-6. 最適化済み姿勢と深度から点群・物体地図を再構築
+1. Convert a dataset-specific format into calibrated RGB `Frame` objects.
+2. Extract ORB features and match descriptors on every frame.
+3. Build 3D features from keyframe depth and estimate poses with PnP RANSAC.
+4. Relocalize against previous keyframes after tracking failure.
+5. Geometrically verify non-neighboring keyframes and optimize an SE(3) pose graph.
+6. Rebuild the point cloud and object map from the optimized poses and depth maps.
 
-人物・車両などの動的クラスは恒久点群とSLAM用3D特徴から除外し、`objects.json`には最終観測位置を持つ動的観測として残します。
+Dynamic classes such as people and vehicles are excluded from the persistent point cloud and the 3D features used by SLAM. They remain in `objects.json` as dynamic observations with their last observed positions.
 
-## 開発とテスト
+## Development and testing
 
 ```bash
 uv run pytest
@@ -145,7 +147,7 @@ uv run ruff check .
 uv run mypy src
 ```
 
-実モデル、公式データ、CUDA GPUを必要とするテストは通常のCPU CIから分離しています。self-hosted CUDAワークフローは永続アセット領域を再利用し、TartanAir 300フレームを明示CUDAで処理します。
+Tests that require real models, official datasets, or a CUDA GPU are separated from the regular CPU CI jobs. The self-hosted CUDA workflow reuses a persistent asset directory and processes all 300 TartanAir frames with an explicitly requested CUDA device.
 
 ```bash
 uv run pytest -m model
@@ -153,13 +155,13 @@ uv run pytest -m benchmark
 uv run pytest -m cuda
 ```
 
-研究ベースラインの目標値は、TartanAir屋外Easyで追跡率95%以上・Sim(3)整列ATE/経路長10%以下・深度AbsRel 0.35以下、EuRoC `MH_01_easy`で追跡率80%以上・Sim(3)整列ATE/経路長15%以下です。モデル、ハードウェア、取得した系列により結果は変わります。
+The research baseline targets are a tracking rate of at least 95%, Sim(3)-aligned ATE below 10% of path length, and depth AbsRel at most 0.35 on the TartanAir outdoor Easy sequence. For EuRoC `MH_01_easy`, the targets are a tracking rate of at least 80% and Sim(3)-aligned ATE below 15% of path length. Results vary by model, hardware, and sequence.
 
-## ライセンス
+## License
 
-本リポジトリはMIT Licenseです。学習済みモデルとデータセットには各配布元のライセンスが適用され、データ本体は再配布しません。
+This repository is licensed under the MIT License. Pretrained models and datasets remain subject to their respective upstream licenses, and dataset binaries are not redistributed.
 
 - [TartanAir V2](https://tartanair.org/): CC BY 4.0
 - [EuRoC MAV](https://www.research-collection.ethz.ch/items/bcaf173e-5dac-484b-bc37-faf97a594f1f): In Copyright - Non-Commercial Use Permitted
 - [Depth Anything V2 Metric Outdoor Small](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf): Apache-2.0
-- [TorchVision SSDLite320 MobileNetV3](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html): BSD-3-Clause（COCOデータセット条件も適用）
+- [TorchVision SSDLite320 MobileNetV3](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html): BSD-3-Clause (COCO dataset terms also apply)
